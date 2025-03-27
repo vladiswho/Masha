@@ -9,6 +9,9 @@ const BoltCalculator = ({ onCalculate }) => {
     M_max: '',
     Q: '',
     responsibilityLevel: 'Нормальный',
+    // Новые поля для ручного ввода параметров
+    beamCustom: { h: '', b: '', s: '', t: '' }, // Параметры двутавра
+    steelCustom: { yieldStrength: '' }, // Предел текучести стали
   });
 
   const [beamOptions, setBeamOptions] = useState([]);
@@ -36,9 +39,31 @@ const BoltCalculator = ({ onCalculate }) => {
     setInputData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleCustomBeamChange = (e) => {
+    const { name, value } = e.target;
+    setInputData((prev) => ({
+      ...prev,
+      beamCustom: { ...prev.beamCustom, [name]: value },
+    }));
+  };
+
+  const handleCustomSteelChange = (e) => {
+    const { name, value } = e.target;
+    setInputData((prev) => ({
+      ...prev,
+      steelCustom: { ...prev.steelCustom, [name]: value },
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onCalculate(inputData);
+    // Добавляем флаги, чтобы указать, используются ли данные из CSV или введенные вручную
+    const dataToSubmit = {
+      ...inputData,
+      useCustomBeam,
+      useCustomSteel,
+    };
+    onCalculate(dataToSubmit);
   };
 
   return (
@@ -46,13 +71,55 @@ const BoltCalculator = ({ onCalculate }) => {
       <div>
         <label>Номер двутавра:</label>
         {useCustomBeam ? (
-          <input
-            type="text"
-            name="beamNumber"
-            value={inputData.beamNumber}
-            onChange={handleChange}
-            placeholder="Введите номер двутавра"
-          />
+          <div>
+            <input
+              type="text"
+              name="beamNumber"
+              value={inputData.beamNumber}
+              onChange={handleChange}
+              placeholder="Введите номер двутавра"
+            />
+            <div>
+              <label>h (мм):</label>
+              <input
+                type="number"
+                name="h"
+                value={inputData.beamCustom.h}
+                onChange={handleCustomBeamChange}
+                placeholder="Высота двутавра"
+              />
+            </div>
+            <div>
+              <label>b (мм):</label>
+              <input
+                type="number"
+                name="b"
+                value={inputData.beamCustom.b}
+                onChange={handleCustomBeamChange}
+                placeholder="Ширина полки"
+              />
+            </div>
+            <div>
+              <label>s (мм):</label>
+              <input
+                type="number"
+                name="s"
+                value={inputData.beamCustom.s}
+                onChange={handleCustomBeamChange}
+                placeholder="Толщина стенки"
+              />
+            </div>
+            <div>
+              <label>t (мм):</label>
+              <input
+                type="number"
+                name="t"
+                value={inputData.beamCustom.t}
+                onChange={handleCustomBeamChange}
+                placeholder="Толщина полки"
+              />
+            </div>
+          </div>
         ) : (
           <select
             name="beamNumber"
@@ -77,13 +144,25 @@ const BoltCalculator = ({ onCalculate }) => {
       <div>
         <label>Марка стали:</label>
         {useCustomSteel ? (
-          <input
-            type="text"
-            name="steelGrade"
-            value={inputData.steelGrade}
-            onChange={handleChange}
-            placeholder="Введите марку стали"
-          />
+          <div>
+            <input
+              type="text"
+              name="steelGrade"
+              value={inputData.steelGrade}
+              onChange={handleChange}
+              placeholder="Введите марку стали"
+            />
+            <div>
+              <label>Предел текучести (МПа):</label>
+              <input
+                type="number"
+                name="yieldStrength"
+                value={inputData.steelCustom.yieldStrength}
+                onChange={handleCustomSteelChange}
+                placeholder="Предел текучести"
+              />
+            </div>
+          </div>
         ) : (
           <select
             name="steelGrade"

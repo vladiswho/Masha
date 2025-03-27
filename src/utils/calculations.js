@@ -47,12 +47,31 @@ export const loadSteelData = async () => {
 };
 
 // Получение данных о двутавре
-export const getBeamData = (beamData, beamNumber) => {
+export const getBeamData = (beamData, beamNumber, useCustomBeam, beamCustom) => {
+  if (useCustomBeam) {
+    // Если используется ручной ввод, возвращаем введенные данные
+    return {
+      'Номер двутавра': beamNumber,
+      h: beamCustom.h,
+      b: beamCustom.b,
+      s: beamCustom.s,
+      t: beamCustom.t,
+    };
+  }
+  // Иначе ищем в CSV
   return beamData.find((beam) => beam['Номер двутавра'] === beamNumber);
 };
 
 // Получение данных о стали
-export const getSteelData = (steelData, steelGrade) => {
+export const getSteelData = (steelData, steelGrade, useCustomSteel, steelCustom) => {
+  if (useCustomSteel) {
+    // Если используется ручной ввод, возвращаем введенные данные
+    return {
+      'Сталь': steelGrade,
+      'Предел текучести': steelCustom.yieldStrength,
+    };
+  }
+  // Иначе ищем в CSV
   return steelData.find((steel) => steel['Сталь'] === steelGrade);
 };
 
@@ -122,16 +141,26 @@ export const calculateJoint = (inputData, beamData, steelData) => {
     throw new Error('Отсутствуют входные данные');
   }
 
-  const { beamNumber, steelGrade, M_max, Q, responsibilityLevel } = inputData;
+  const { beamNumber, steelGrade, M_max, Q, responsibilityLevel, useCustomBeam, useCustomSteel, beamCustom, steelCustom } = inputData;
 
-  const beam = getBeamData(beamData, beamNumber);
+  // Получаем данные о двутавре
+  const beam = getBeamData(beamData, beamNumber, useCustomBeam, beamCustom);
   if (!beam) throw new Error('Двутавр с таким номером не найден');
 
-  const steel = getSteelData(steelData, steelGrade);
+  // Получаем данные о стали
+  const steel = getSteelData(steelData, steelGrade, useCustomSteel, steelCustom);
   if (!steel) throw new Error('Марка стали не найдена');
 
   const boltClass = getBoltClass(responsibilityLevel);
   if (!boltClass) throw new Error('Класс прочности болтов не найден');
+
+  // Проверяем, что все параметры двутавра и стали введены
+  if (useCustomBeam && (!beamCustom.h || !beamCustom.b || !beamCustom.s || !beamCustom.t)) {
+    throw new Error('Не все параметры двутавра введены');
+  }
+  if (useCustomSteel && !steelCustom.yieldStrength) {
+    throw new Error('Предел текучести стали не введен');
+  }
 
   const h = parseFloat(beam['h']);
   const b = parseFloat(beam['b']);
@@ -176,6 +205,8 @@ export const calculateJoint = (inputData, beamData, steelData) => {
   const roundedUpperWidth = roundUpToTen(b_upper);
   const roundedSideLength = roundUpToTen(l_side);
   const roundedSideWidth = roundUpToTen(b_side);
+  const roundedUpperThick = roundUpToTen(t_upper);
+  const roundedSideThick = roundUpToTen(t_side);
 
   const roundedStepVUpper = roundDownToTen(step_v_upper);
   const roundedStepHUpper = roundDownToTen(step_h_upper);
@@ -189,7 +220,7 @@ export const calculateJoint = (inputData, beamData, steelData) => {
       verticalStep: roundedStepVUpper,
       horizontalStep: roundedStepHUpper,
       width: roundedUpperWidth,
-      thickness: t_upper,
+      thickness: roundedUpperThick,
       length: roundedUpperLength,
       boltClass: boltClass.class,
     },
@@ -199,7 +230,7 @@ export const calculateJoint = (inputData, beamData, steelData) => {
       verticalStep: roundedStepVSide,
       horizontalStep: roundedStepHSide,
       width: roundedSideWidth,
-      thickness: t_side,
+      thickness: roundedSideThick,
       length: roundedSideLength,
       boltClass: boltClass.class,
     },

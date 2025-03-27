@@ -9,7 +9,6 @@ function App() {
   const [beamData, setBeamData] = useState(null);
   const [steelData, setSteelData] = useState(null);
 
-  // Загружаем данные из CSV при монтировании компонента
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -38,7 +37,7 @@ function App() {
 
   return (
     <div className="app-container">
-      <h1>Расчет стыка балки на высокопрочных болтах</h1>
+      <h1>Расчет стыка главных балок</h1>
       <BoltCalculator onCalculate={handleCalculate} />
       {result && <ResultDisplay result={result} />}
     </div>
