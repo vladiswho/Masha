@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import BoltCalculator from './components/BoltCalculator';
 import ResultDisplay from './components/ResultDisplay';
 import { calculateJoint, loadBeamData, loadSteelData } from './utils/calculations';
+import JointVisualization from './components/JointVisualization';
 
 function App() {
   const [result, setResult] = useState(null);
@@ -40,6 +41,7 @@ function App() {
       <h1>Расчет стыка главных балок</h1>
       <BoltCalculator onCalculate={handleCalculate} />
       {result && <ResultDisplay result={result} />}
+      {result && <JointVisualization result={result} />}
     </div>
   );
 }

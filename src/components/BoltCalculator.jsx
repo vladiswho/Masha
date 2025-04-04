@@ -211,9 +211,9 @@ const BoltCalculator = ({ onCalculate }) => {
           value={inputData.responsibilityLevel}
           onChange={handleChange}
         >
-          <option value="Пониженный">Пониженный</option>
-          <option value="Нормальный">Нормальный</option>
-          <option value="Повышенный">Повышенный</option>
+          <option value="Пониженный">Пониженный (простые болты)</option>
+          <option value="Нормальный">Нормальный (фрикционные болты)</option>
+          <option value="Повышенный">Повышенный (фрикционные болты)</option>
         </select>
       </div>
 

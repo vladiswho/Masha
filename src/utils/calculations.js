@@ -1,241 +1,282 @@
-// src/utils/calculations.js
 import Papa from 'papaparse';
+
+const BOLT_STANDARDS = {
+  MIN_CENTER_DISTANCE: 3,  // 3d
+  MAX_CENTER_DISTANCE: 12, // 12d
+  MIN_EDGE_DISTANCE: 2,    // 2d
+  MAX_EDGE_DISTANCE: 4     // 4d
+};
 
 // Данные о классах болтов
 const boltClassData = [
-  { class: "8.8", strength: 830, reliability: 1.25, responsibility: "Пониженный" },
-  { class: "10.9", strength: 1040, reliability: 1.25, responsibility: "Нормальный" },
-  { class: "12.9", strength: 1220, reliability: 1.25, responsibility: "Повышенный" },
+  { 
+    class: "8.8", 
+    strength: 830,
+    frictionCoefficient: 0.35,
+    isFriction: false
+  },
+  { 
+    class: "10.9",
+    strength: 1040,
+    frictionCoefficient: 0.42,
+    isFriction: true
+  },
+  { 
+    class: "12.9",
+    strength: 1220, 
+    frictionCoefficient: 0.45,
+    isFriction: true
+  }
 ];
 
-// Данные о шагах болтов
-const boltSpacingData = {
-  minCenterDistance: (yieldStrength) => (yieldStrength < 540 ? 2.5 : 3),
-  maxCenterDistance: 16,
-  minEdgeDistance: (yieldStrength) => (yieldStrength < 540 ? 2 : 2.5),
-  maxEdgeDistance: 4,
-};
-
-// Площади болтов (в см²)
+// Площади болтов (мм²) и доступные диаметры
 const boltAreas = {
-  16: 2.01,
-  20: 3.14,
-  24: 3.52,
-  30: 7.07,
+  16: 201,
+  20: 314,
+  22: 380,
+  24: 452,
+  27: 573,
+  30: 707
 };
 
-// Загрузка данных о двутаврах из CSV
-export const loadBeamData = async () => {
-  const response = await fetch('/двутавр.csv');
-  if (!response.ok) throw new Error('Не удалось загрузить двутавр.csv');
-  const reader = response.body.getReader();
-  const result = await reader.read();
-  const decoder = new TextDecoder('utf-8');
-  const csv = decoder.decode(result.value);
-  return Papa.parse(csv, { header: true }).data;
-};
+const availableDiameters = [16, 20, 22, 24, 27, 30];
 
-// Загрузка данных о стали из CSV
-export const loadSteelData = async () => {
-  const response = await fetch('/сталь.csv');
-  if (!response.ok) throw new Error('Не удалось загрузить сталь.csv');
-  const reader = response.body.getReader();
-  const result = await reader.read();
-  const decoder = new TextDecoder('utf-8');
-  const csv = decoder.decode(result.value);
-  return Papa.parse(csv, { header: true }).data;
-};
+// Вспомогательные функции
+function getBeamData(beamData, beamNumber, useCustom, customData) {
+  return useCustom ? {
+    'Номер двутавра': beamNumber,
+    h: customData.h,
+    b: customData.b,
+    s: customData.s,
+    t: customData.t
+  } : beamData.find(b => b['Номер двутавра'] === beamNumber);
+}
 
-// Получение данных о двутавре
-export const getBeamData = (beamData, beamNumber, useCustomBeam, beamCustom) => {
-  if (useCustomBeam) {
-    // Если используется ручной ввод, возвращаем введенные данные
-    return {
-      'Номер двутавра': beamNumber,
-      h: beamCustom.h,
-      b: beamCustom.b,
-      s: beamCustom.s,
-      t: beamCustom.t,
-    };
+function getSteelData(steelData, steelGrade, useCustom, customData) {
+  return useCustom ? {
+    'Сталь': steelGrade,
+    'Предел текучести': customData.yieldStrength
+  } : steelData.find(s => s['Сталь'] === steelGrade);
+}
+
+function getBoltClass(responsibilityLevel) {
+  switch(responsibilityLevel) {
+    case 'Пониженный': return boltClassData[0];
+    case 'Нормальный': return boltClassData[1];
+    case 'Повышенный': return boltClassData[2];
+    default: throw new Error("Неверный уровень ответственности");
   }
-  // Иначе ищем в CSV
-  return beamData.find((beam) => beam['Номер двутавра'] === beamNumber);
-};
+}
 
-// Получение данных о стали
-export const getSteelData = (steelData, steelGrade, useCustomSteel, steelCustom) => {
-  if (useCustomSteel) {
-    // Если используется ручной ввод, возвращаем введенные данные
-    return {
-      'Сталь': steelGrade,
-      'Предел текучести': steelCustom.yieldStrength,
-    };
+// Функция нормативного расчета шагов с правильным округлением
+function calculateBoltSpacing(diameter, proposedStep, length, boltCount) {
+  const minStep = diameter * BOLT_STANDARDS.MIN_CENTER_DISTANCE;
+  const maxStep = diameter * BOLT_STANDARDS.MAX_CENTER_DISTANCE;
+  const minEdge = diameter * BOLT_STANDARDS.MIN_EDGE_DISTANCE;
+
+  // Округляем шаги до 10 мм в меньшую сторону
+  const roundedMinStep = Math.floor(minStep / 10) * 10;
+  const roundedMaxStep = Math.floor(maxStep / 10) * 10;
+  // Краевые расстояния округляем вверх
+  const roundedMinEdge = Math.ceil(minEdge);
+
+  const minRequiredLength = 2 * roundedMinEdge + (boltCount - 1) * roundedMinStep;
+  if (length < minRequiredLength) {
+    throw new Error(`Недостаточная длина ${length}мм для размещения ${boltCount} болтов Ø${diameter}мм. Минимальная длина: ${minRequiredLength}мм`);
   }
-  // Иначе ищем в CSV
-  return steelData.find((steel) => steel['Сталь'] === steelGrade);
-};
 
-// Получение класса болтов
-export const getBoltClass = (responsibilityLevel) => {
-  return boltClassData.find((bolt) => bolt.responsibility === responsibilityLevel);
-};
+  // Начальное значение шага с округлением вниз до 10 мм
+  let adjustedStep = Math.floor(Math.max(proposedStep, roundedMinStep) / 10) * 10;
+  adjustedStep = Math.min(adjustedStep, roundedMaxStep);
 
-// Округление вверх до 10
-const roundUpToTen = (value) => Math.ceil(value / 10) * 10;
-
-// Округление вниз до 10
-const roundDownToTen = (value) => Math.floor(value / 10) * 10;
-
-// Проверка шага болтов
-const checkBoltSpacing = (n, d, length, Ry) => {
-  const minStep = boltSpacingData.minCenterDistance(Ry) * d;
-  const minEdge = boltSpacingData.minEdgeDistance(Ry) * d;
-  const boltsPerSide = n / 2;
-  const requiredLength = 2 * minEdge + (boltsPerSide - 1) * minStep;
-  if (requiredLength > length) {
-    const maxBoltsPerSide = Math.floor((length - 2 * minEdge) / minStep) + 1;
-    return Math.max(2, maxBoltsPerSide * 2);
+  // Пересчитываем краевые расстояния
+  let edgeDistance = (length - (boltCount - 1) * adjustedStep) / 2;
+  
+  // Если краевое расстояние меньше минимального - корректируем шаг
+  if (edgeDistance < roundedMinEdge) {
+    adjustedStep = Math.floor((length - 2 * roundedMinEdge) / (boltCount - 1) / 10) * 10;
+    edgeDistance = roundedMinEdge;
   }
-  return n;
-};
 
-// Подбор болтов
-const adjustBolts = (force, initialDiameter, t_min, length, Rbs, Rbp, Ry, ns = 2) => {
-  const diameters = Object.keys(boltAreas).map(Number).sort((a, b) => a - b);
-  let d = initialDiameter;
-  let n = 2;
-  let diameterIndex = diameters.indexOf(d);
-  let iteration = 0;
-  const maxIterations = 100;
+  if (adjustedStep > roundedMaxStep) {
+    throw new Error(`Невозможно разместить ${boltCount} болтов на длине ${length}мм с соблюдением норм. Увеличьте длину или уменьшите количество болтов.`);
+  }
 
-  while (iteration < maxIterations) {
-    const Ab = boltAreas[d];
-    const shearCapacity = (Rbs * Ab * ns) / 10; // кН
-    const crushCapacity = (Rbp * d * t_min) / 1000; // кН
-    const Nb = force / n;
+  return {
+    step: adjustedStep,
+    edgeDistance: Math.ceil(edgeDistance), // Краевые расстояния округляем вверх
+    isValid: adjustedStep >= roundedMinStep && adjustedStep <= roundedMaxStep
+  };
+}
 
-    if (Nb <= shearCapacity && Nb <= crushCapacity) {
-      const adjustedN = checkBoltSpacing(n, d, length, Ry);
-      if (adjustedN === n || force / adjustedN <= shearCapacity && force / adjustedN <= crushCapacity) {
-        return { diameter: d, count: adjustedN };
+// Расчет болтов в одном ряду
+function calculateBoltsInRow(force, diameter, thickness, length, isFriction, boltClass) {
+  let boltCount = isFriction
+    ? Math.ceil(force / (boltClass.strength * boltClass.frictionCoefficient * boltAreas[diameter] / 1250))
+    : Math.ceil(force / Math.min(
+        0.4 * boltAreas[diameter],
+        0.8 * diameter * thickness
+      ));
+
+  const maxPossibleBolts = Math.floor(
+    (length - 2 * BOLT_STANDARDS.MIN_EDGE_DISTANCE * diameter) / 
+    (BOLT_STANDARDS.MIN_CENTER_DISTANCE * diameter)
+  ) + 1;
+
+  boltCount = Math.min(boltCount, maxPossibleBolts);
+  
+  return {
+    count: boltCount,
+    diameter
+  };
+}
+
+// Функция подбора диаметра болтов
+function calculateBoltsWithDiameterSelection(force, thickness, length, width, isFriction, boltClass) {
+  let bestSolution = null;
+  
+  for (const diameter of [...availableDiameters].reverse()) {
+    try {
+      const maxRows = Math.min(4, Math.floor(width / (diameter * BOLT_STANDARDS.MIN_CENTER_DISTANCE)));
+      
+      for (let rows = 1; rows <= maxRows; rows++) {
+        const boltsPerRow = calculateBoltsInRow(
+          force / rows,
+          diameter,
+          thickness,
+          length,
+          isFriction,
+          boltClass
+        );
+        
+        const totalBolts = boltsPerRow.count * rows;
+        
+        const spacing = calculateBoltSpacing(
+          diameter,
+          length / (boltsPerRow.count + 1),
+          length,
+          boltsPerRow.count
+        );
+        
+        const horizontalSpacing = calculateBoltSpacing(
+          diameter,
+          width / (rows + 1),
+          width,
+          rows
+        );
+        
+        if (!bestSolution || totalBolts < bestSolution.count) {
+          bestSolution = {
+            diameter,
+            count: totalBolts,
+            rows,
+            boltsPerRow: boltsPerRow.count,
+            verticalStep: spacing.step,
+            horizontalStep: horizontalSpacing.step,
+            edgeDistance: spacing.edgeDistance,
+            horizontalEdgeDistance: horizontalSpacing.edgeDistance,
+            isValid: spacing.isValid && horizontalSpacing.isValid
+          };
+        }
       }
-      n = adjustedN;
+    } catch (e) {
+      continue;
     }
-
-    n += 2;
-    if (n > 20 && diameterIndex < diameters.length - 1) {
-      diameterIndex++;
-      d = diameters[diameterIndex];
-      n = 2;
-    } else if (n > 20) {
-      throw new Error('Не удалось подобрать болты');
-    }
-    iteration++;
   }
-  throw new Error('Бесконечный цикл в adjustBolts');
-};
+  
+  if (!bestSolution) {
+    throw new Error("Не удалось подобрать болты для заданных параметров");
+  }
+  
+  return bestSolution;
+}
 
 // Основная функция расчета
-export const calculateJoint = (inputData, beamData, steelData) => {
-  if (!beamData || !steelData || !inputData) {
-    throw new Error('Отсутствуют входные данные');
-  }
+export function calculateJoint(inputData, beamData, steelData) {
+  if (!beamData || !steelData) throw new Error("Отсутствуют данные о материалах");
+  if (!inputData.M_max || inputData.M_max <= 0) throw new Error("Неверное значение момента");
 
-  const { beamNumber, steelGrade, M_max, Q, responsibilityLevel, useCustomBeam, useCustomSteel, beamCustom, steelCustom } = inputData;
+  const beam = getBeamData(beamData, inputData.beamNumber, inputData.useCustomBeam, inputData.beamCustom);
+  const steel = getSteelData(steelData, inputData.steelGrade, inputData.useCustomSteel, inputData.steelCustom);
+  
+  if (!beam || !steel) throw new Error("Не найдены данные о материалах");
 
-  // Получаем данные о двутавре
-  const beam = getBeamData(beamData, beamNumber, useCustomBeam, beamCustom);
-  if (!beam) throw new Error('Двутавр с таким номером не найден');
-
-  // Получаем данные о стали
-  const steel = getSteelData(steelData, steelGrade, useCustomSteel, steelCustom);
-  if (!steel) throw new Error('Марка стали не найдена');
-
-  const boltClass = getBoltClass(responsibilityLevel);
-  if (!boltClass) throw new Error('Класс прочности болтов не найден');
-
-  // Проверяем, что все параметры двутавра и стали введены
-  if (useCustomBeam && (!beamCustom.h || !beamCustom.b || !beamCustom.s || !beamCustom.t)) {
-    throw new Error('Не все параметры двутавра введены');
-  }
-  if (useCustomSteel && !steelCustom.yieldStrength) {
-    throw new Error('Предел текучести стали не введен');
-  }
-
-  const h = parseFloat(beam['h']);
-  const b = parseFloat(beam['b']);
-  const s = parseFloat(beam['s']);
-  const t = parseFloat(beam['t']);
+  const h = parseFloat(beam.h);
+  const b = parseFloat(beam.b);
+  const s = parseFloat(beam.s);
+  const t = parseFloat(beam.t);
   const Ry = parseFloat(steel['Предел текучести']);
 
-  const Rbs = 400; // кН/см² (примерное значение)
-  const Rbp = 800; // кН/см² (примерное значение)
+  const boltClass = getBoltClass(inputData.responsibilityLevel);
+  const isFriction = boltClass.isFriction;
 
-  const t_upper = Math.max(t + 2, 8);
-  const t_side = Math.max(s + 2, 6);
-  const b_upper = b;
-  const b_side = h - 2 * t;
-  const l_upper = h * 1.5;
-  const l_side = b * 1.5;
+  // Толщины накладок округляем вверх
+  const t_upper = Math.ceil(Math.max(t + 2, 8));
+  const t_side = Math.ceil(Math.max(s + 2, 6));
+  
+  // Ширины и длины накладок округляем вверх до 10 мм
+  const b_upper = Math.ceil(b / 10) * 10;
+  const b_side = Math.ceil((h - 2 * t) / 10) * 10;
+  const l_upper = Math.ceil((h * 1.5) / 10) * 10;
+  const l_side = Math.ceil((b * 1.5) / 10) * 10;
 
-  const N_flange = (M_max * 1000) / (h - t); // кН
-  const N_per_flange = N_flange / 2;
-  const initialDiameterFlange = 20;
-  const flangeBolts = adjustBolts(N_per_flange, initialDiameterFlange, t, l_upper, Rbs, Rbp, Ry, 2);
-  const d_upper = flangeBolts.diameter;
-  const n_upper = flangeBolts.count;
+  const N_flange = (inputData.M_max * 1000) / (h - t);
+  const Q = inputData.Q || 0;
 
-  const Q_per_plate = Q / 2;
-  const initialDiameterSide = 20;
-  const sideBoltsPerPlate = adjustBolts(Q_per_plate, initialDiameterSide, s, l_side, Rbs, Rbp, Ry, 2);
-  const d_side = sideBoltsPerPlate.diameter;
-  const n_side = sideBoltsPerPlate.count * 2;
+  const flangeBolts = calculateBoltsWithDiameterSelection(
+    N_flange / 2,
+    t,
+    l_upper,
+    b_upper,
+    isFriction,
+    boltClass
+  );
 
-  const minStepUpper = boltSpacingData.minCenterDistance(Ry) * d_upper;
-  const maxStepUpper = boltSpacingData.maxCenterDistance * d_upper;
-  const minStepSide = boltSpacingData.minCenterDistance(Ry) * d_side;
-  const maxStepSide = boltSpacingData.maxCenterDistance * d_side;
+  const sideBolts = calculateBoltsWithDiameterSelection(
+    Q / 2,
+    s,
+    l_side,
+    b_side,
+    isFriction,
+    boltClass
+  );
 
-  const step_v_upper = Math.min(Math.max(l_upper / (n_upper / 2), minStepUpper), maxStepUpper);
-  const step_h_upper = Math.min(Math.max(b_upper / 2, minStepUpper), maxStepUpper);
-  const step_v_side = Math.min(Math.max(b_side / (n_side / 2), minStepSide), maxStepSide);
-  const step_h_side = Math.min(Math.max(l_side / 2, minStepSide), maxStepSide);
-
-  const roundedUpperLength = roundUpToTen(l_upper);
-  const roundedUpperWidth = roundUpToTen(b_upper);
-  const roundedSideLength = roundUpToTen(l_side);
-  const roundedSideWidth = roundUpToTen(b_side);
-  const roundedUpperThick = roundUpToTen(t_upper);
-  const roundedSideThick = roundUpToTen(t_side);
-
-  const roundedStepVUpper = roundDownToTen(step_v_upper);
-  const roundedStepHUpper = roundDownToTen(step_h_upper);
-  const roundedStepVSide = roundDownToTen(step_v_side);
-  const roundedStepHSide = roundDownToTen(step_h_side);
-
-  const result = {
+  return {
+    connectionType: isFriction ? "Фрикционное" : "Обычное",
+    boltClass: boltClass.class,
     upper: {
-      boltDiameter: d_upper,
-      boltCount: n_upper,
-      verticalStep: roundedStepVUpper,
-      horizontalStep: roundedStepHUpper,
-      width: roundedUpperWidth,
-      thickness: roundedUpperThick,
-      length: roundedUpperLength,
-      boltClass: boltClass.class,
+      ...flangeBolts,
+      width: b_upper,
+      thickness: t_upper,
+      length: l_upper
     },
     side: {
-      boltDiameter: d_side,
-      boltCount: n_side,
-      verticalStep: roundedStepVSide,
-      horizontalStep: roundedStepHSide,
-      width: roundedSideWidth,
-      thickness: roundedSideThick,
-      length: roundedSideLength,
-      boltClass: boltClass.class,
+      ...sideBolts,
+      width: b_side,
+      thickness: t_side,
+      length: l_side
     },
-    beamData: { h, b, s, t },
-    steelData: { Ry },
+    standards: BOLT_STANDARDS
   };
-  return result;
+}
+
+// Загрузка данных из CSV
+export async function loadBeamData() {
+  const response = await fetch('/двутавр.csv');
+  const data = await response.text();
+  return Papa.parse(data, { header: true }).data;
+}
+
+export async function loadSteelData() {
+  const response = await fetch('/сталь.csv');
+  const data = await response.text();
+  return Papa.parse(data, { header: true }).data;
+}
+
+export default {
+  calculateJoint,
+  loadBeamData,
+  loadSteelData,
+  BOLT_STANDARDS,
+  boltClassData
 };

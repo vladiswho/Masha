@@ -1,5 +1,6 @@
-// src/components/ResultDisplay.jsx
+// Компонент вывода результатов (ResultDisplay.jsx)
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const ResultDisplay = ({ result }) => {
   if (!result) return null;
@@ -9,24 +10,79 @@ const ResultDisplay = ({ result }) => {
   return (
     <div className="result-display">
       <h2>Результаты расчета</h2>
-      <p>Длина верхней накладки (L_upper) = {upper.length} мм</p>
-      <p>Ширина верхней накладки (B_upper) = {upper.width} мм</p>
-      <p>Толщина верхней накладки (t_upper) = {upper.thickness} мм</p>
-      <p>Диаметр болтов для верхней накладки (d_upper) = {upper.boltDiameter} мм</p>
-      <p>Количество болтов для верхней накладки (n_upper) = {upper.boltCount}</p>
-      <p>Шаг по вертикали для верхней накладки (S_v_upper) = {upper.verticalStep} мм</p>
-      <p>Шаг по горизонтали для верхней накладки (S_h_upper) = {upper.horizontalStep} мм</p>
-      <p>Класс болтов для верхней накладки = {upper.boltClass}</p>
-      <p>Длина боковой накладки (L_side) = {side.length} мм</p>
-      <p>Ширина боковой накладки (B_side) = {side.width} мм</p>
-      <p>Толщина боковой накладки (t_side) = {side.thickness} мм</p>
-      <p>Диаметр болтов для боковой накладки (d_side) = {side.boltDiameter} мм</p>
-      <p>Количество болтов для боковой накладки (n_side) = {side.boltCount}</p>
-      <p>Шаг по вертикали для боковой накладки (S_v_side) = {side.verticalStep} мм</p>
-      <p>Шаг по горизонтали для боковой накладки (S_h_side) = {side.horizontalStep} мм</p>
-      <p>Класс болтов для боковой накладки = {side.boltClass}</p>
+      
+      <div className="result-section">
+        <h3>Накладки на полки</h3>
+        <ul>
+          <li>Длина (L<sub>1</sub>) = {upper.length} мм</li>
+          <li>Ширина (B<sub>1</sub>) = {upper.width} мм</li>
+          <li>Толщина (t<sub>1</sub>) = {upper.thickness} мм</li>
+          <li>Диаметр болтов (d<sub>1</sub>) = {upper.diameter} мм</li>
+          <li>Количество болтов (n<sub>1</sub>) = {upper.count} ({upper.rows}×{upper.boltsPerRow})</li>
+          <li>Шаг по вертикали (S<sub>v1</sub>) = {upper.verticalStep} мм</li>
+          <li>Шаг по горизонтали (S<sub>h1</sub>) = {upper.horizontalStep} мм</li>
+          <li>Краевое расстояние по вертикали (e<sub>v1</sub>) = {upper.edgeDistance} мм</li>
+          <li>Краевое расстояние по горизонтали (e<sub>h1</sub>) = {upper.horizontalEdgeDistance} мм</li>
+        </ul>
+      </div>
+      
+      <div className="result-section">
+        <h3>Накладка на стенку</h3>
+        <ul>
+          <li>Длина (L<sub>2</sub>) = {side.length} мм</li>
+          <li>Ширина (B<sub>2</sub>) = {side.width} мм</li>
+          <li>Толщина (t<sub>2</sub>) = {side.thickness} мм</li>
+          <li>Диаметр болтов (d<sub>2</sub>) = {side.diameter} мм</li>
+          <li>Количество болтов (n<sub>2</sub>) = {side.count} ({side.rows}×{side.boltsPerRow})</li>
+          <li>Шаг по вертикали (S<sub>v2</sub>) = {side.verticalStep} мм</li>
+          <li>Шаг по горизонтали (S<sub>h2</sub>) = {side.horizontalStep} мм</li>
+          <li>Краевое расстояние по вертикали (e<sub>v2</sub>) = {side.edgeDistance} мм</li>
+          <li>Краевое расстояние по горизонтали (e<sub>h2</sub>) = {side.horizontalEdgeDistance} мм</li>
+        </ul>
+      </div>
+      
+      <div className="result-section">
+        <h3>Общие параметры</h3>
+        <ul>
+          <li>Тип соединения: {result.connectionType}</li>
+          <li>Класс болтов: {result.boltClass}</li>
+        </ul>
+      </div>
     </div>
   );
+};
+
+ResultDisplay.propTypes = {
+  result: PropTypes.shape({
+    connectionType: PropTypes.string.isRequired,
+    boltClass: PropTypes.string.isRequired,
+    upper: PropTypes.shape({
+      diameter: PropTypes.number.isRequired,
+      count: PropTypes.number.isRequired,
+      rows: PropTypes.number.isRequired,
+      boltsPerRow: PropTypes.number.isRequired,
+      verticalStep: PropTypes.number.isRequired,
+      horizontalStep: PropTypes.number.isRequired,
+      edgeDistance: PropTypes.number.isRequired,
+      horizontalEdgeDistance: PropTypes.number.isRequired,
+      width: PropTypes.number.isRequired,
+      length: PropTypes.number.isRequired,
+      thickness: PropTypes.number.isRequired
+    }).isRequired,
+    side: PropTypes.shape({
+      diameter: PropTypes.number.isRequired,
+      count: PropTypes.number.isRequired,
+      rows: PropTypes.number.isRequired,
+      boltsPerRow: PropTypes.number.isRequired,
+      verticalStep: PropTypes.number.isRequired,
+      horizontalStep: PropTypes.number.isRequired,
+      edgeDistance: PropTypes.number.isRequired,
+      horizontalEdgeDistance: PropTypes.number.isRequired,
+      width: PropTypes.number.isRequired,
+      length: PropTypes.number.isRequired,
+      thickness: PropTypes.number.isRequired
+    }).isRequired
+  })
 };
 
 export default ResultDisplay;
