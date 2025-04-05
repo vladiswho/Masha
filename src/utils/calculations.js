@@ -179,6 +179,7 @@ function calculateBoltsWithDiameterSelection(force, thickness, length, width, is
           };
         }
       }
+    // eslint-disable-next-line no-unused-vars
     } catch (e) {
       continue;
     }
